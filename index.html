@@ -1,0 +1,25 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VELTON</title>
+<style>
+*{box-sizing:border-box}body{background:#edf6fe;color:#133957;font:16px system-ui;margin:0}main{max-width:640px;margin:auto;padding:24px 16px 48px}header{background:#123e66;color:white;padding:21px 24px;border-radius:20px;display:flex;align-items:center;justify-content:space-between}header strong{font:bold italic 30px system-ui;letter-spacing:-2px}button,input,select{font:inherit;border-radius:12px;padding:13px;border:1px solid #bdd7e9;color:inherit;background:white}button{cursor:pointer}button:disabled{opacity:.6}section{margin:14px 0;padding:18px;background:white;border-radius:16px}h1{font-size:26px;margin:24px 0 12px}h2{font-size:20px;margin:0 0 8px}p{line-height:1.5}button.row{display:block;text-align:left;width:100%;margin:8px 0;padding:16px}button.row small{display:block;margin:4px 0;color:#456a85}input,select{width:100%;margin:6px 0 14px}.primary{background:#146eae;color:white;border:0}.note{color:#47677f}#err{color:#a22934}label{display:block}button:focus-visible{outline:3px solid #4099d9}
+</style><script src="https://telegram.org/js/telegram-web-app.js"></script><main><header><strong>VELTON</strong><button id="profile">Профиль</button></header><p id="err" role="alert"></p><div id="app"></div></main><script>
+const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();
+const app=document.querySelector('#app'),err=document.querySelector('#err');
+let data,view='slots',slot=1,busy=false;
+function node(tag,text,parent=app){const e=document.createElement(tag);e.textContent=text;parent.append(e);return e}
+function button(label,fn,parent=app,cls='row'){const b=node('button',label,parent);b.className=cls;b.onclick=fn;return b}
+function go(v){view=v;render()}
+async function request(args){if(busy)return;busy=true;err.textContent='';try{
+const r=await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...args,auth:tg?.initData||''})});const j=await r.json();if(!r.ok)throw Error(j.error);data=j;if(args.action==='create')view='career';render()
+}catch(e){err.textContent=e.message}finally{busy=false}}
+function render(){app.replaceChildren();if(!data)return;
+if(view!=='slots')button('← Мои карьеры',()=>go('slots'),app,'');
+if(view==='slots'){node('h1','Мои карьеры');node('p','Занято '+data.careers.length+' из 5 слотов');for(let i=1;i<=5;i++){const c=data.careers.find(x=>x.slot===i);const b=button(c?c.name:'Создать карьеру',()=>{slot=i;go(c?'career':'new')});node('small','Слот '+i+(c?' · '+c.role+' · Тур '+(c.turn+1):' · Свободен'),b)}}
+if(view==='new'){node('h1','Новая карьера');const box=node('section','');const role=node('select','',node('label','Роль',box));Object.keys(data.roles).forEach(r=>node('option',r,role));const name=node('input','',node('label','Название карьеры или клуба',box));name.maxLength=40;button('Начать карьеру',()=>request({action:'create',slot,name:name.value,role:role.value}),box,'primary')}
+if(view==='career'){const c=data.careers.find(x=>x.slot===slot);node('h1',c.name);node('p',c.role+' · Тур '+(c.turn+1)+' · Очки '+c.points);
+const box=node('section','');node('h2',c.role==='Судья'?'Эпизод матча':'Решение на этот тур',box);
+if(c.role==='Судья')node('p',c.turn%2?'Ассистент поднял флаг после передачи за спину защитникам. Что проверить?':'Защитник сбил нападающего в штрафной. Что проверить?',box);
+data.roles[c.role].forEach((v,i)=>button(v,()=>request({action:'play',slot,choice:i,turn:c.turn}),box));
+if(c.log)node('p','Прошлый тур · '+c.log);Object.entries(c.stats).forEach(([k,v])=>node('p',k+' · '+v))}
+if(view==='profile'){node('h1',data.username);node('p','Сыграно туров · '+data.careers.reduce((a,c)=>a+c.turn,0));node('h2','Награды');const rules=['Забить первый гол','Выиграть матч прессингом','Верно разобрать эпизод','Заключить первую сделку','Воспитать игрока или найти спонсора'];Object.entries(data.trophies).forEach(([r,t],i)=>{const box=node('section','');node('h2',t,box);node('p',r+' · '+rules[i],box);node('small',data.awards.includes(t)?'Получена':'Пока закрыта',box)})}}
+document.querySelector('#profile').onclick=()=>go('profile');request({action:'state'})
+</script></html>

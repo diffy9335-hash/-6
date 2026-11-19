@@ -1,0 +1,14 @@
+services:
+  velton:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN:-}
+      APP_URL: ${APP_URL:-}
+      DEMO_MODE: ${DEMO_MODE:-0}
+    volumes:
+      - velton_data:/app/data
+    restart: unless-stopped
+volumes:
+  velton_data:
